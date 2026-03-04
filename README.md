@@ -27,7 +27,7 @@ This project uses `renv` to ensure portability and consistent R package versions
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/superstore-analysis.git
+git clone https://github.com/bruskez/superstore-analysis.git
 ```
 
 2. **Open the project**
