@@ -24,7 +24,7 @@ library(patchwork)
 library(pROC)
 
 # Path dataset
-file_path <- "C:\\Users\\stebr\\Downloads\\archive\\SampleSuperstore.csv"
+file_path <- "C:\\file_path\\SampleSuperstore.csv"
 
 data_raw <- read.csv(file_path, stringsAsFactors = FALSE)
 str(data_raw)
