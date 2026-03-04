@@ -36,21 +36,25 @@ test_df  <- model_df[-train_index, ]
 
 # =================================================================================
 # Helper function: compute confusion matrix for final evaluation
-eval_model <- function(pred, actual, name) {
+eval_model <- function(pred, actual, name, prob = NULL) {
   cm <- table(Predicted = pred, Actual = actual)
   TN <- cm[1,1]; FP <- cm[2,1]; FN <- cm[1,2]; TP <- cm[2,2]
   prec <- TP / (TP + FP)
   rec  <- TP / (TP + FN)
+  
+  auc_val <- if (!is.null(prob)) {
+    round(as.numeric(pROC::auc(pROC::roc(actual, prob, quiet = TRUE))), 4)
+  } else NA
+  
   data.frame(
-    Model       = name,
-    Accuracy    = round((TP + TN) / sum(cm), 4),
-    Precision   = round(prec, 4),
-    Recall      = round(rec, 4),
-    Specificity = round(TN / (TN + FP), 4),
-    F1          = round(2 * prec * rec / (prec + rec), 4)
+    Model     = name,
+    Accuracy  = round((TP + TN) / sum(cm), 4),
+    Precision = round(prec, 4),
+    Recall    = round(rec, 4),
+    F1        = round(2 * prec * rec / (prec + rec), 4),
+    AUC       = auc_val
   )
 }
-
 results <- list()
 
 # =================================================================================
@@ -76,6 +80,10 @@ summary(logit_model)
 pred_logit <- ifelse(predict(logit_model, newdata = test_df, type = "response") >= 0.5, 1, 0)
 results[["Logistic"]] <- eval_model(pred_logit, test_df$loss_flag, "Logistic")
 
+prob_logit <- predict(logit_model, newdata = test_df, type = "response")
+pred_logit <- ifelse(prob_logit >= 0.5, 1, 0)
+results[["Logistic"]] <- eval_model(pred_logit, test_df$loss_flag, "Logistic", prob = prob_logit)
+
 # =================================================================================
 # LASSO
 # =================================================================================
@@ -95,8 +103,9 @@ lasso_coefs <- coef(cv_lasso, s = "lambda.1se")
 cat("\n--- LASSO: Coefficienti (lambda.1se) ---\n")
 print(lasso_coefs)
 
-pred_lasso <- ifelse(predict(cv_lasso, newx = X_test, s = "lambda.1se", type = "response") >= 0.5, 1, 0)
-results[["LASSO"]] <- eval_model(pred_lasso, y_test, "LASSO")
+prob_lasso <- predict(cv_lasso, newx = X_test, s = "lambda.1se", type = "response")
+pred_lasso <- ifelse(prob_lasso >= 0.5, 1, 0)
+results[["LASSO"]] <- eval_model(pred_lasso, y_test, "LASSO", prob = prob_lasso)
 
 # =================================================================================
 # 6.5  RIDGE
@@ -118,8 +127,9 @@ ridge_coefs <- coef(cv_ridge, s = "lambda.1se")
 cat("\n--- RIDGE: CoefficientS (lambda.1se) ---\n")
 print(ridge_coefs)
 
-pred_ridge <- ifelse(predict(cv_ridge, newx = X_test, s = "lambda.1se", type = "response") >= 0.5, 1, 0)
-results[["RIDGE"]] <- eval_model(pred_ridge, y_test, "RIDGE")
+prob_ridge <- predict(cv_ridge, newx = X_test, s = "lambda.1se", type = "response")
+pred_ridge <- ifelse(prob_ridge >= 0.5, 1, 0)
+results[["RIDGE"]] <- eval_model(pred_ridge, y_test, "RIDGE", prob = prob_ridge)
 
 # =================================================================================
 # RANDOM FOREST
@@ -170,8 +180,9 @@ ggplot(imp_df, aes(x = value, y = reorder(variable, value), fill = metric)) +
     axis.text.y = element_text(size = 11)
   )
 
-pred_rf <- predict(rf_model, newdata = test_df, type = "class")
-results[["Random Forest"]] <- eval_model(pred_rf, test_df$loss_flag, "Random Forest")
+prob_rf  <- predict(rf_model, newdata = test_df, type = "prob")[, 2]
+pred_rf  <- predict(rf_model, newdata = test_df, type = "class")
+results[["Random Forest"]] <- eval_model(pred_rf, test_df$loss_flag, "Random Forest", prob = prob_rf)
 
 # =================================================================================
 # BOOSTING
@@ -214,9 +225,9 @@ ggplot(gbm_imp, aes(x = rel.inf, y = var)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-pred_gbm <- ifelse(predict(gbm_model, newdata = test_gbm,
-                          n.trees = best_n_trees_gbm, type = "response") >= 0.5, 1, 0)
-results[["GBM"]] <- eval_model(pred_gbm, test_gbm$loss_flag, "GBM")
+prob_gbm <- predict(gbm_model, newdata = test_gbm, n.trees = best_n_trees_gbm, type = "response")
+pred_gbm <- ifelse(prob_gbm >= 0.5, 1, 0)
+results[["GBM"]] <- eval_model(pred_gbm, test_gbm$loss_flag, "GBM", prob = prob_gbm)
 
 # =================================================================================
 # XGBoost
@@ -244,7 +255,7 @@ cv_xgb <- xgb.cv(params  = params_xgb,
                   print_every_n = 100,
                   verbose = TRUE)
 
-best_nrounds_xgb <- cv_xgb$early_stop$best_iteration
+best_nrounds_xgb <- cv_xgb$best_iteration
 cat("\n--- XGBoost: Optimal nrounds (CV) ---\n")
 cat("best_iteration:", best_nrounds_xgb, "\n")
 
@@ -294,8 +305,9 @@ ggplot(pd, aes(x = discount, y = yhat)) +
     plot.subtitle = element_text(hjust = 0.5, color = "gray50")
   )
 
-pred_xgb <- ifelse(predict(xgb_model, newdata = dtest) >= 0.5, 1, 0)
-results[["XGBoost"]] <- eval_model(pred_xgb, y_test, "XGBoost")
+prob_xgb <- predict(xgb_model, newdata = dtest)
+pred_xgb <- ifelse(prob_xgb >= 0.5, 1, 0)
+results[["XGBoost"]] <- eval_model(pred_xgb, y_test, "XGBoost", prob = prob_xgb)
 
 # =================================================================================
 # CONFRONTO FINALE MODELLI
@@ -307,92 +319,21 @@ rownames(comparison) <- NULL
 cat("\n========== METRICS COMPARISON — ALL MODELS ==========\n")
 print(comparison)
 
-# Confusion matrix All models (precision - recall)
 comparison_long <- comparison %>%
-  pivot_longer(cols = c(Precision, Recall),
-               names_to = "metric", values_to = "value")
+  pivot_longer(cols = c(Accuracy, Precision, Recall, F1, AUC),
+               names_to = "Metric", values_to = "Value")
 
-ggplot(comparison_long, aes(x = reorder(Model, -value), y = value, fill = metric)) +
-  geom_col(position = "dodge") +
-  geom_text(aes(label = round(value, 3)),
-            position = position_dodge(width = 0.9),
-            vjust = -0.3, size = 3.2) +
-  scale_fill_manual(values = c("Precision" = "#2C7BB6", "Recall" = "#D7191C")) +
-  labs(title    = "Precision and Recall Comparison — All Models",
-       subtitle = "Positive class: loss_flag = 1",
-       x = NULL, y = NULL, fill = NULL) +
+ggplot(comparison_long, aes(x = reorder(Model, -Value), y = Value, fill = Model)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = round(Value, 3)), vjust = -0.3, size = 3) +
+  facet_wrap(~ Metric, nrow = 1) +
   ylim(0, 1) +
-  theme_minimal(base_size = 13) +
+  labs(title = "Model Comparison — All Metrics", x = NULL, y = NULL) +
+  theme_minimal(base_size = 12) +
   theme(
-    plot.title    = element_text(face = "bold", hjust = 0.5, size = 15),
-    plot.subtitle = element_text(hjust = 0.5, color = "gray50"),
-    legend.position = "top"
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1)
   )
-
-
-# ROC curve (AUC)
-# Predicted probabilities — all models
-prob_logit <- predict(logit_model, newdata = test_df, type = "response")
-prob_lasso <- as.vector(predict(cv_lasso, newx = X_test, s = "lambda.1se", type = "response"))
-prob_ridge <- as.vector(predict(cv_ridge, newx = X_test, s = "lambda.1se", type = "response"))
-prob_rf <- predict(rf_model, newdata = test_df, type = "prob")[, "1"]
-prob_gbm <- predict(gbm_model, newdata = test_gbm, n.trees = best_n_trees_gbm, type = "response")
-prob_xgb <- predict(xgb_model, newdata = dtest)
-
-# ROC objects
-roc_logit <- roc(as.numeric(as.character(test_df$loss_flag)), prob_logit, quiet = TRUE)
-roc_lasso  <- roc(y_test, prob_lasso,  quiet = TRUE)
-roc_ridge  <- roc(y_test, prob_ridge,  quiet = TRUE)
-roc_rf     <- roc(y_test, prob_rf,     quiet = TRUE)
-roc_gbm    <- roc(y_test, prob_gbm,    quiet = TRUE)
-roc_xgb    <- roc(y_test, prob_xgb,    quiet = TRUE)
-
-# Build unified dataframe
-make_roc_df <- function(roc_obj, name) {
-  data.frame(
-    FPR   = 1 - roc_obj$specificities,
-    TPR   = roc_obj$sensitivities,
-    Model = paste0(name, "  (AUC = ", round(auc(roc_obj), 4), ")")
-  )
-}
-
-roc_df <- rbind(
-  make_roc_df(roc_logit, "Logistic"),
-  make_roc_df(roc_lasso,  "LASSO"),
-  make_roc_df(roc_ridge,  "Ridge"),
-  make_roc_df(roc_rf,     "Random Forest"),
-  make_roc_df(roc_gbm,    "GBM"),
-  make_roc_df(roc_xgb,    "XGBoost")
-)
-
-# Dynamic color palette
-palette_roc <- setNames(
-  c("#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628", "#E41A1C"),
-  unique(roc_df$Model)
-)
-
-ggplot(roc_df, aes(x = FPR, y = TPR, color = Model)) +
-  geom_line(linewidth = 0.9) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey60") +
-  scale_color_manual(values = palette_roc) +
-  scale_x_continuous(labels = percent_format(accuracy = 1), limits = c(0, 1)) +
-  scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, 1)) +
-  labs(
-    title    = "ROC Curve — All Models Comparison",
-    subtitle = "Test set (stratified 70/30 split)",
-    x        = "False Positive Rate (1 − Specificity)",
-    y        = "True Positive Rate (Recall)",
-    color    = NULL
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title        = element_text(face = "bold"),
-    legend.position   = "bottom",
-    legend.background = element_rect(fill = "white", color = "grey80"),
-    legend.text       = element_text(size = 9)
-  ) +
-  guides(color = guide_legend(ncol = 2))
-
 
 
 
