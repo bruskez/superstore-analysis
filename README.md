@@ -15,7 +15,7 @@ This project analyzes U.S. “Superstore” sales data to identify profitability
 ├── .Rprofile              # Local R configuration
 ├── renv.lock              # Snapshot of packages for reproducibility
 ├── superstore.Rproj       # RStudio project file
-└── final_report.pdf      # Full documentation (end-to-end analysis)
+└── final_report.pdf       # Full documentation (end-to-end analysis)
 ```
 
 ---
