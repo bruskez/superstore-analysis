@@ -1,81 +1,62 @@
 # Superstore Analysis & Predictive Modeling
 
-This project analyzes U.S. “Superstore” sales data to identify profitability drivers and predict loss-making transactions. The workflow includes **Exploratory Data Analysis (EDA)**, **Unsupervised Learning (Clustering)**, and **Supervised Learning (Classification)**.
+Analysis of U.S. "Superstore" retail sales data to identify profitability drivers and predict loss-making transactions.
 
-## 📂 Project Structure
+The project is written entirely in **R** and covers three stages: exploratory data analysis (EDA), unsupervised learning (PCA and clustering), and supervised learning (binary classification on `loss_flag`).
+
+## Dataset
+
+The data comes from the public **[Superstore](https://www.kaggle.com/datasets/ibrahimelsayed182/superstore/data)** dataset on Kaggle (~10k U.S. retail transactions: sales, quantity, discount, and profit, along with geographic and product dimensions).
+
+The CSV file is not included in this repository. To run the project:
+
+1. Download the dataset from Kaggle
+2. Save the file locally as `SampleSuperstore.csv`
+3. Update the `file_path` variable in `code/setup_and_eda.R`
+
+## Project structure
 
 ```text
 .
 ├── code/
-│   ├── setup_and_eda.R    # Data cleaning and descriptive analysis
-│   ├── supervised.R       # Predictive models (XGBoost, RF, etc.)
-│   └── unsupervised.R     # PCA and clustering (K-means, Hierarchical)
-├── renv/                  # Project dependency management
-├── .gitignore             # Excludes unnecessary files (e.g., local CSVs)
-├── .Rprofile              # Local R configuration
-├── renv.lock              # Snapshot of packages for reproducibility
+│   ├── setup_and_eda.R    # Data loading, cleaning, and descriptive analysis
+│   ├── unsupervised.R     # PCA and clustering (K-means, hierarchical)
+│   └── supervised.R       # Predictive models (XGBoost, RF, GLM, ...)
+├── renv/                  # Dependency management
+├── renv.lock              # Package snapshot for reproducibility
 ├── superstore.Rproj       # RStudio project file
-└── final_report.pdf       # Full documentation (end-to-end analysis)
+├── final_report.pdf       # Full analysis report
+├── .Rprofile
+└── .gitignore
 ```
 
----
+## Modules
 
-## 🛠️ How to Reproduce the Project
+### `setup_and_eda.R`
 
-This project uses `renv` to ensure portability and consistent R package versions.
+Loads and cleans the dataset (standardizing column names, dropping redundant fields) and builds the `loss_flag` target. Includes:
 
-1. **Clone the repository**
+- Correlation analysis across numeric variables
+- Target distribution
+- Geographic analysis of profit by region and state (U.S. maps)
+- Impact of discount on profitability
 
-```bash
-git clone https://github.com/bruskez/superstore-analysis.git
-```
+### `unsupervised.R`
 
-2. **Open the project**
-   Double-click `superstore.Rproj` in RStudio.
+Transaction segmentation:
 
-3. **Restore the environment**
-   If RStudio doesn’t prompt you automatically, run:
+- **PCA** for dimensionality reduction and reading the variance structure
+- **Clustering** with K-means and hierarchical methods (Ward's linkage)
+- **Profiling** of clusters to define business segments
 
-```r
-renv::restore()
-```
+### `supervised.R`
 
-4. **Data**
-   The dataset was found in Kaggle as "superstore" (different versions), you can download locally and update the path to `SampleSuperstore.csv` in `setup_and_eda.R` (variable `file_path`).
+Classification of loss-making transactions:
 
----
+- **Models:** logistic regression, LASSO, Ridge, Random Forest, GBM, XGBoost
+- **Evaluation:** precision, recall, F1-score, and AUC comparison
+- **Interpretability:** feature importance and Partial Dependence Plots to isolate the effect of discount on loss probability
 
-## 🧩 Module Overview
+## Final report
 
-### 1. `setup_and_eda.R`
-
-Handles dataset loading and cleaning (e.g., standardizing column names, removing redundant fields). Includes extensive visual EDA:
-
-* Correlation analysis across numeric variables
-* Target distribution for `loss_flag`
-* Geographic analysis (U.S. maps) of profit by region/state
-* Discount impact on profitability
-
-### 2. `unsupervised.R`
-
-Advanced exploratory analysis for segmentation:
-
-* **PCA:** Dimensionality reduction to visualize variance structure
-* **Clustering:** **K-means** and **Hierarchical Clustering** (Ward’s method)
-* **Profiling:** Cluster-level summaries to define business segments
-
-### 3. `supervised.R`
-
-Builds models to predict whether a transaction will generate a loss (`loss_flag`):
-
-* **Models:** Logistic Regression, LASSO, Ridge, Random Forest, GBM, XGBoost
-* **Evaluation:** Precision, Recall, F1-score, and AUC comparison
-* **Interpretability:** Feature importance and Partial Dependence Plots (PDP) to isolate the effect of discount on loss probability
-
----
-
-## 📄 Final Report
-
-`final_report.pdf` provides the strategic summary of the entire study, translating technical findings into business insights. It includes conclusions on the best-performing models and actionable recommendations to optimize the Superstore’s discount strategy.
-
----
+[`final_report.pdf`](final_report.pdf) contains the full write-up: methodology, model comparison, results, and actionable recommendations for optimizing the Superstore's discount strategy.
